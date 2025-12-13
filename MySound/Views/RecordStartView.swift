@@ -18,10 +18,10 @@ struct RecordStartView: View {
     
     @State private var isRecording: Bool = false
     @State private var isPaused: Bool = false
-    @State private var currentTime: TimeInterval = 0
+    @State private var currentTime: TimeInterval = 12
     @State private var isActive: Bool = true
     
-    let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    var timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     
     var body: some View {
         VStack(spacing: 10) {
@@ -56,6 +56,7 @@ struct RecordStartView: View {
                 } else {
                     Button {
                         ttsService.stop()
+                        viewModel.stopAutoAdvance()
                     } label: {
                         Image(systemName: "stop.fill")
                             .font(.system(size: 18, weight: .bold))
@@ -71,8 +72,10 @@ struct RecordStartView: View {
                     Task {
                         if ttsService.isSpeaking { ttsService.stop() }
                         await recordingService.startRecording()
+                        // Inicia avanço automático durante a gravação a cada 0.8s
+                        viewModel.startAutoAdvance(interval: 0.8)
                         isRecording = true
-                        currentTime = 0
+                       
                     }
                 } label: {
                     Image(systemName: "mic.fill")
@@ -101,12 +104,19 @@ struct RecordStartView: View {
             if !showAsHeader {
                 Spacer().frame(height: 8).padding(.bottom, 12)
             }
-        }
-        .onReceive(timer) { _ in
-            if recordingService.isRecording {
+        }.task {
+            while true {
+                try? await Task.sleep(for: .seconds(1))
                 currentTime += 1
+                print("TASK TICK")
             }
         }
+
+        
+//            .onReceive(timer) { _ in
+//              
+//                currentTime += 1
+//            }
     }
 }
 
@@ -123,3 +133,4 @@ struct RecordStartView: View {
     let _viewModel = ChapterViewModel(chapterText: text, languageCode: "en-GB")
     RecordStartView(ttsService: ts, viewModel: _viewModel, recordingService: recordingService, showAsHeader: true)
 }
+

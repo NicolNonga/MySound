@@ -15,9 +15,11 @@ struct RecordingBottomBar: View {
     var currentLevel: CGFloat
     @Binding var isActive: Bool
     @StateObject var recordingService: RecordingService
+
     
     // Novo: controla se é usado no topo
     var showAsHeader: Bool = false
+    @StateObject var chapterViewModel: ChapterViewModel
     
     var body: some View {
         VStack {
@@ -42,9 +44,20 @@ struct RecordingBottomBar: View {
                         .background(Circle().fill(Color.gray.opacity(0.35)))
                 }
                 
+                
                 Button {
                     isRecording = false
                     recordingService.stopRecording()
+                    // Para o avanço automático quando parar a gravação
+                    // Como este componente não tem acesso direto ao viewModel,
+                    // pare o avanço no lugar onde o stop é acionado, ou injete o viewModel aqui.
+                    // Se preferir parar aqui, precisamos receber o viewModel como parâmetro.
+            
+                    chapterViewModel.reset()
+                    chapterViewModel.stopAutoAdvance()
+                    
+                    
+                    
                 } label: {
                     Image(systemName: "stop.fill")
                         .font(.system(size: 18, weight: .bold))
@@ -79,16 +92,29 @@ struct RecordingBottomBar: View {
 }
 
 struct RecordingBottomBar_Previews: PreviewProvider {
+
+
     struct PreviewWrapper: View {
         @State var isRecording = true
         @State var isPaused = false
-        @State var currentTime: TimeInterval = 12
+        @State var currentTime: TimeInterval = 0
         var currentLevel: CGFloat = 0.5
         @State var isActive: Bool = false
-        
-        let recordingService: RecordingService = RecordingService()
+ 
+
+            
         
         var body: some View {
+            let sampleText: [String: String] = [
+                "en-GB": "This is a simple sample chapter. The user will read this text aloud.",
+                "fr-FR": "Ceci est un chapitre exemple simple. L'utilisateur lira ce texte à voix haute.",
+                "es-ES": "Este es un capítulo de exemplo simple. El usuario leerá este texto en voz alta.",
+                "pt-BR": "Este é um capítulo de exemplo simples. O usuário lerá este texto en voz alta."
+            ]
+            let text = sampleText["en-GB"] ?? "Text not available"
+            let chapterViewModel: ChapterViewModel = ChapterViewModel(chapterText: text, languageCode: "en-GB")
+            
+            let recordingService: RecordingService = RecordingService()
             ZStack {
                 Color(.systemBackground).ignoresSafeArea()
                 RecordingBottomBar(
@@ -98,7 +124,8 @@ struct RecordingBottomBar_Previews: PreviewProvider {
                     currentLevel: currentLevel,
                     isActive: $isActive,
                     recordingService: recordingService,
-                    showAsHeader: true
+                    showAsHeader: true,
+                    chapterViewModel: chapterViewModel
                 )
             }
         }
@@ -112,3 +139,4 @@ struct RecordingBottomBar_Previews: PreviewProvider {
             .preferredColorScheme(.dark)
     }
 }
+

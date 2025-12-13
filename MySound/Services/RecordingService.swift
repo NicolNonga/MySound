@@ -13,6 +13,7 @@ import os
 final class RecordingService: NSObject, ObservableObject {
     @Published private(set) var isRecording: Bool = false
     @Published private(set) var currentLevel: Float = 0.0 // 0.0 ... 1.0 normalized
+    @Published private(set) var recordingStopped: Bool = false
     
     private var recorder: AVAudioRecorder?
     private var levelTimer: Timer?
@@ -21,8 +22,8 @@ final class RecordingService: NSObject, ObservableObject {
     // Last recorded file URL (temporary)
     @Published private(set) var fileURL: URL?
     
-    func startRecording(fileName: String = "recording-\(UUID().uuidString).m4a") {
-        requestPermissionIfNeeded { [weak self] granted in
+    func startRecording(fileName: String = "recording-\(UUID().uuidString).m4a") async {
+           await   requestPermissionIfNeeded { [weak self] granted in
             guard let self = self else { return }
             guard granted else {
                 self.logger.error("Microphone permission not granted.")
@@ -58,6 +59,7 @@ final class RecordingService: NSObject, ObservableObject {
     func stopRecording() {
         recorder?.stop()
         recorder = nil
+        recordingStopped = true
         stopMetering()
         deactivateAudioSession()
         DispatchQueue.main.async {
@@ -67,21 +69,14 @@ final class RecordingService: NSObject, ObservableObject {
     }
     
     // MARK: - Permission
-    private func requestPermissionIfNeeded(_ completion: @escaping (Bool) -> Void) {
-        switch AVAudioSession.sharedInstance().recordPermission {
-        case .granted:
+    private  func requestPermissionIfNeeded(_ completion: @escaping (Bool) -> Void)  async {
+        
+        if await AVAudioApplication.requestRecordPermission(){
             completion(true)
-        case .denied:
-            completion(false)
-        case .undetermined:
-            AVAudioSession.sharedInstance().requestRecordPermission { granted in
-                DispatchQueue.main.async {
-                    completion(granted)
-                }
-            }
-        @unknown default:
+        }else {
             completion(false)
         }
+
     }
     
     // MARK: - Audio Session

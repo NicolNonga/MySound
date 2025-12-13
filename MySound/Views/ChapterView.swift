@@ -22,7 +22,6 @@ struct ChapterView: View {
     @State private var isActive: Bool =  true
     @State private var didAttachTTS = false
     
-    let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     
     private var words: [String] {
         viewModel.chapterText.components(separatedBy: "")
@@ -48,7 +47,7 @@ La lumière du matin glissait entre les rideaux, dessinant des lignes pâles sur
 
 Dehors, la rue était douce — quelques pas, une sonnette de vélo, le léger bruissement des feuilles dans une brise passante. C’était le genre de matin qui fait des promesses sans prononcer un mot, celui qui ressemble à une page blanche prête à être écrite. Elle inspira lentement, ferma les yeux et écouta. Il était là, encore : le rythme discret d’un nouveau jour, stable et sans hâte.
 
-Elle saisit le livre, tourna une page et sourit. Aujourd’hui serait différent — pas mais mais mais mais mais mais mais mais mais mais mais mais mais mais mais plus clair. Il y avait des choses à apprendre, des mots à dire à voix haute, et d’autres à laisser partir. Et pour la première fois depuis longtemps, c’était suffisant.
+Elle saisit le livre, tourna une page et sourit. Aujourd’hui serait différent — pas mais mais mais mais mais mais mais mais mais mais mais mais mais mais mais plus claro. Il y avait des choses à apprendre, des mots à dire à voix haute, et d’autres à laisser partir. Et pour la première fois depuis longtemps, c’était suffisant.
 """,
             "es-ES":
 """
@@ -58,7 +57,7 @@ La luz de la mañana se colaba por las cortinas, dibujando líneas pálidas sobr
 
 Afuera, la calle era serena: pasos por aquí, el timbre de una bicicleta por allá, el suave susurro de las hojas con la brisa. Era ese tipo de mañana que hace promesas sin decir nada, el tipo que se siente como una página en blanco esperando ser escrita. Respiró despacio, cerró los ojos y escuchó. Allí estaba de nuevo: el ritmo callado de un nuevo día, constante y sin prisa.
 
-Tomó el libro, pasó una página y sonrió. Hoy sería distinto — no más ruidoso, no más brillante, pero sí más claro. Había cosas que aprender, cosas que decir en voz alta y cosas que, por fin, dejar ir. Y por primera vez en mucho tiempo, eso bastaba.
+Tomó el livro, pasó una página y sonrió. Hoy sería distinto — no más ruidoso, no más brillante, pero sí más claro. Había cosas que aprender, cosas que decir en voz alta y cosas que, por fin, dejar ir. Y por primera vez en mucho tiempo, eso bastaba.
 """,
             "pt-BR":
 """
@@ -79,15 +78,23 @@ Pegou o livro, virou a página e sorriu. Hoje seria diferente — não mais baru
     
     var body: some View {
         ZStack {
-            // Conteúdo principal
-            ScrollView {
-                HighlightedTextView(words: viewModel.words, currentWordIndex: viewModel.currentWordIndex)
-                    .padding(.horizontal, 12)
-                    // Reserva espaço suficiente para player + card inferior
-                    .padding(.bottom, bottomReservedSpace)
+            // Conteúdo principal com auto-scroll
+            ScrollViewReader { proxy in
+                ScrollView {
+                    // Layout “wrap” simples com linhas automáticas usando fluxo de texto
+                    // (mantendo o destaque amarelo na palavra atual)
+                    Text(buildAttributedString(words: viewModel.words, highlightIndex: viewModel.currentWordIndex))
+                        .font(.title3)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding()
+                        .id("paragraph") // id para scroll aproximado
+                }
+                .padding(.horizontal, 12)
+                .padding(.bottom)
+       
             }
             
-            // Rodapé: Player acima, card de ação abaixo
+            // Rodapé: apenas controles agora
             VStack(spacing: 8) {
                 Spacer()
                 
@@ -107,10 +114,12 @@ Pegou o livro, virou a página e sorriu. Hoje seria diferente — não mais baru
                         currentTime: $currentTime,
                         currentLevel: CGFloat(recordingService.currentLevel),
                         isActive: $isActive,
-                        recordingService: recordingService
+                        recordingService: recordingService,
+                        chapterViewModel: viewModel
                     )
                     .transition(.move(edge: .bottom).combined(with: .opacity))
-                } else {
+                }
+                else if !isPlayMyAudio{
                     RecordStartView(
                         ttsService: ttsService,
                         viewModel: viewModel,
@@ -135,39 +144,44 @@ Pegou o livro, virou a página e sorriu. Hoje seria diferente — não mais baru
                 didAttachTTS = true
             }
         }
-        .onDisappear {
-            ttsService.stop()
-            if recordingService.isRecording { recordingService.stopRecording() }
+        
+    }
+    
+    // Cria um AttributedString com destaque amarelo na palavra atual
+    private func buildAttributedString(words: [String], highlightIndex: Int) -> AttributedString {
+        var result = AttributedString()
+        for (i, w) in words.enumerated() {
+            var piece = AttributedString(w)
+            piece.font = .system(.title3)
+            if i == highlightIndex {
+                piece.backgroundColor = .yellow
+            }
+            result += piece
+            if i < words.count - 1 {
+                result += AttributedString(" ")
+            }
         }
-        .ignoresSafeArea(edges: .bottom)
+        return result
     }
     
-    // Espaço reservado no final do ScrollView para não cobrir o texto
-    private var bottomReservedSpace: CGFloat {
-        // Alturas aproximadas: player + card
-        let playerHeight: CGFloat = recordingService.recordingStopped ? 120 : 0
-        let cardHeight: CGFloat = recordingService.isRecording ? 140 : 120
-        return playerHeight + cardHeight + 24
-    }
-    
-    // Wrapper reutilizável com o mesmo estilo do "card clean"
+    // Cria âncoras invisíveis por palavra para permitir scrollTo preciso
     @ViewBuilder
-    private func playerCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        content()
-            .padding(16)
-            .background(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(.ultraThinMaterial)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .strokeBorder(Color.white.opacity(0.06), lineWidth: 1)
-                    )
-                    .shadow(color: Color.black.opacity(0.25), radius: 18, x: 0, y: 10)
-            )
-            .frame(maxWidth: .infinity)
+    private func anchorForWord(_ index: Int) -> some View {
+        // Cria views invisíveis com ids previsíveis para scroll
+        ZStack {
+            ForEach(Array(viewModel.words.enumerated()), id: \.0) { i, _ in
+                Color.clear
+                    .frame(height: 0.1)
+                    .id("word-\(i)")
+            }
+        }
     }
+
+    
+
 }
 
 #Preview {
     ChapterView(languageCode: "en-GB")
 }
+
