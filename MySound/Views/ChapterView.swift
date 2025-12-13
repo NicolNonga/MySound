@@ -15,6 +15,9 @@ struct ChapterView: View {
     
     @State var isRecording = true
     @State var isPaused = false
+    
+    @State var isPlayMyAudio = false
+    
     @State var currentTime: TimeInterval = 0
     @State private var isActive: Bool =  true
     @State private var didAttachTTS = false
@@ -117,10 +120,13 @@ Pegou o livro, virou a página e sorriu. Hoje seria diferente — não mais baru
                 }
             }
         }
-        .onReceive(timer){ _ in
-            if recordingService.isRecording {
-                currentTime += 1
-                viewModel.startAutoAdvance(interval: 0.8)
+        .safeAreaInset(edge: .top, spacing: 8) {
+            if recordingService.recordingStopped,
+               let url = recordingService.fileURL {
+
+                AudioPlayerVeiw(audioURL: url, isPlayMyAudio:  $isPlayMyAudio)
+                    .padding(.horizontal, 12)
+                    .padding(.top, 8)
             }
         }
         .onAppear {
