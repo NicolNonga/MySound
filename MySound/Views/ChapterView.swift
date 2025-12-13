@@ -98,15 +98,6 @@ Pegou o livro, virou a página e sorriu. Hoje seria diferente — não mais baru
             VStack(spacing: 8) {
                 Spacer()
                 
-                if recordingService.recordingStopped, let url = recordingService.fileURL {
-                    // Player com a mesma "casca" de card clean
-                    playerCard {
-                        AudioPlayerVeiw(audioURL: url)
-                    }
-                    .padding(.horizontal, 16)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
-                
                 if recordingService.isRecording {
                     RecordingBottomBar(
                         isRecording: $isRecording,
