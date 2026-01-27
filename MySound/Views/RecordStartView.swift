@@ -18,7 +18,7 @@ struct RecordStartView: View {
     
     @State private var isRecording: Bool = false
     @State private var isPaused: Bool = false
-    @Binding private var currentTime: TimeInterval = 12
+    @State private var currentTime: TimeInterval = 12
     @State private var isActive: Bool = true
     
     var timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
