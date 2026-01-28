@@ -42,17 +42,28 @@ class TTSService: NSObject, ObservableObject {
         configureAudioSession()
         
         let utterance = AVSpeechUtterance(string: text)
-        // Prefer specific voice; if unavailable, try base language code
-        if let voice = AVSpeechSynthesisVoice(language: languageCode) {
+        
+        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.9
+        utterance.pitchMultiplier = 1.02
+        utterance.preUtteranceDelay = 0.0
+        utterance.postUtteranceDelay = 0.05
+        utterance.volume = 1.0
+        
+        if let voice = getEnglishVoiceByName("Allison") {
             utterance.voice = voice
+        }
+        else if let preferred = AVSpeechSynthesisVoice.speechVoices().first(where: { $0.language == languageCode && $0.quality == .enhanced }) {
+            utterance.voice = preferred
+        } else if let exact = AVSpeechSynthesisVoice(language: languageCode) {
+            utterance.voice = exact
         } else if let baseCode = languageCode.split(separator: "-").first,
-                  let baseVoice = AVSpeechSynthesisVoice(language: String(baseCode)) {
-            utterance.voice = baseVoice
+                  let base = AVSpeechSynthesisVoice(language: String(baseCode)) {
+            utterance.voice = base
             logger.warning("Specific voice \(languageCode, privacy: .public) not found, using base \(String(baseCode), privacy: .public)")
         } else {
             logger.error("No voice available for \(languageCode, privacy: .public). Using system default.")
         }
-        
+
         synthesizer.speak(utterance)
         // isSpeaking will be updated by delegate callbacks
     }
@@ -67,6 +78,14 @@ class TTSService: NSObject, ObservableObject {
         
     }
     
+    func getEnglishVoiceByName(_ name: String) -> AVSpeechSynthesisVoice? {
+        
+        let voices = AVSpeechSynthesisVoice.speechVoices()
+        
+        return voices.first(where: {
+            $0.language.starts(with: "en") && $0.name.localizedCaseInsensitiveContains(name)
+        })
+    }
     private func configureAudioSession() {
         do {
             let session = AVAudioSession.sharedInstance()
@@ -82,6 +101,7 @@ extension TTSService: AVSpeechSynthesizerDelegate {
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
         DispatchQueue.main.async { [weak self] in
             self?.isSpeaking = true
+            self?.chapterViewModel?.stopAutoAdvance()
         }
     }
     
@@ -106,16 +126,8 @@ extension TTSService: AVSpeechSynthesizerDelegate {
         willSpeakRangeOfSpeechString characterRange: NSRange,
         utterance: AVSpeechUtterance
     ) {
-        guard let viewModel  = chapterViewModel else { return }
-        let fullText = utterance.speechString
-        
-        if let range = Range(characterRange, in: fullText) {
-            let spokenWord = String(fullText[range])
-            
-            if let index = viewModel.words.firstIndex(where: { clean($0) == clean(spokenWord) }) {
-                viewModel.updateWordIndex(index)
-            }
-        }
+        guard let viewModel = chapterViewModel else { return }
+        viewModel.updateHighlight(using: characterRange)
     }
     
     private func clean(_ word: String) -> String {
@@ -127,3 +139,4 @@ extension TTSService: AVSpeechSynthesizerDelegate {
             .trimmingCharacters(in: .whitespaces)
     }
 }
+

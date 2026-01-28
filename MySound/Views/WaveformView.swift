@@ -24,6 +24,8 @@ struct WaveformView: View {
     // Estado interno para suavização e alturas
     @State private var smoothedLevel: CGFloat = 0
     @State private var barHeights: [CGFloat] = []
+    @State private var peakLevel: CGFloat = 0
+    @State private var phaseShift: CGFloat = 0
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -51,11 +53,10 @@ struct WaveformView: View {
     }
 
     var body: some View {
-        let gradient = LinearGradient(
-            colors: [topColor, baseColor],
-            startPoint: .top,
-            endPoint: .bottom
-        )
+        let intensity = max(0.2, min(1.0, level * 1.2))
+        let adaptiveTop = topColor.opacity(0.6 + 0.4 * Double(intensity))
+        let adaptiveBase = baseColor.opacity(colorScheme == .dark ? 0.85 : 0.9)
+        let gradient = LinearGradient(colors: [adaptiveTop, adaptiveBase], startPoint: .top, endPoint: .bottom)
 
         HStack(spacing: spacing) {
             ForEach(0..<barCount, id: \.self) { i in
@@ -67,26 +68,56 @@ struct WaveformView: View {
         .onAppear {
             smoothedLevel = 0
             barHeights = Array(repeating: 2, count: barCount)
+            peakLevel = 0
+            phaseShift = 0
         }
         .onChange(of: level) { newValue in
             updateBars(with: newValue)
         }
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: barHeights)
+        .onChange(of: reduceMotion) { _ in
+            phaseShift = 0
+        }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: barHeights)
     }
 
     // Calcula a altura de cada barra com leve variação ao redor do nível suavizado
     private func updateBars(with newLevel: CGFloat) {
-        // Suavização exponencial (EMA)
-        smoothedLevel = smoothing * smoothedLevel + (1 - smoothing) * max(0, min(newLevel, 1))
+        // Clamp input
+        let input = max(0, min(newLevel, 1))
 
-        // Escala de altura (mínimo 2pt para não sumir)
+        // Attack/decay smoothing: ataque mais rápido, queda mais lenta
+        let attack: CGFloat = max(0.05, 1 - smoothing) // quanto menor smoothing, mais rápido
+        let decay: CGFloat = max(0.02, smoothing * 0.5)
+        if input > smoothedLevel {
+            smoothedLevel = smoothedLevel + (input - smoothedLevel) * attack
+        } else {
+            smoothedLevel = smoothedLevel + (input - smoothedLevel) * decay
+        }
+
+        // Atualiza pico com queda gradual
+        if smoothedLevel > peakLevel {
+            peakLevel = smoothedLevel
+        } else {
+            peakLevel = max(0, peakLevel - 0.02) // queda do pico
+        }
+
+        // Base height mínima para não sumir
         let base = max(2, smoothedLevel * maxHeight)
 
-        // Distribui variação sutil entre as barras, criando “onda” mais orgânica
+        // Atualiza deslocamento de fase para movimento orgânico quando há sinal
+        if !reduceMotion {
+            let motion = CGFloat(0.6) * (0.3 + 0.7 * smoothedLevel) // mais movimento com mais nível
+            phaseShift = (phaseShift + motion).truncatingRemainder(dividingBy: .pi * 2)
+        }
+
+        // Distribui variação com fase animada e leve influência do pico
         barHeights = (0..<barCount).map { idx in
-            let phase = CGFloat(idx) / CGFloat(max(barCount - 1, 1)) * .pi
-            let wobble = (sin(phase) * 0.25 + 0.75) // 0.5...1.0 approx
-            return max(2, base * wobble)
+            let t = CGFloat(idx) / CGFloat(max(barCount - 1, 1))
+            // Forma de onda entre 0.6...1.0
+            let wave = (sin(t * .pi + phaseShift) * 0.2 + 0.8)
+            // Mistura com pico para dar impressão de energia
+            let energy = max(wave, 0.6) * (0.8 + 0.2 * (peakLevel > 0 ? (peakLevel / max(0.001, smoothedLevel + 0.001)) : 0))
+            return max(2, base * energy)
         }
     }
 

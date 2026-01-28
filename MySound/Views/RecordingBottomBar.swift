@@ -25,6 +25,7 @@ struct RecordingBottomBar: View {
         VStack {
             if !showAsHeader { Spacer() }
             
+            
             HStack(spacing: 16) {
                 Text(formatTime(currentTime))
                     .font(.system(size: 20, weight: .medium))
