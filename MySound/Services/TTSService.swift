@@ -31,7 +31,7 @@ class TTSService: NSObject, ObservableObject {
     
     func speak(_ text: String, languageCode: String) {
         // Reset before starting a new utterance
-        chapterViewModel?.reset()
+        
         
         // If already speaking, stop immediately before starting new
         if synthesizer.isSpeaking {
@@ -101,7 +101,7 @@ extension TTSService: AVSpeechSynthesizerDelegate {
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
         DispatchQueue.main.async { [weak self] in
             self?.isSpeaking = true
-            self?.chapterViewModel?.stopAutoAdvance()
+       
         }
     }
     
@@ -109,7 +109,7 @@ extension TTSService: AVSpeechSynthesizerDelegate {
         DispatchQueue.main.async { [weak self] in
             self?.isSpeaking = false
             // Reset after finishing
-            self?.chapterViewModel?.reset()  // depois de acabar de fazer a leitura
+           /* self?.chapterViewModel?.nextWord()*/  // depois de acabar de fazer a leitura
         }
     }
     
@@ -117,18 +117,19 @@ extension TTSService: AVSpeechSynthesizerDelegate {
         DispatchQueue.main.async { [weak self] in
             self?.isSpeaking = false
             // Reset after canceling
-            self?.chapterViewModel?.reset()
+//            self?.chapterViewModel?.reset()
         }
     }
     
-    func speechSynthesizer(
-        _ synthesizer: AVSpeechSynthesizer,
-        willSpeakRangeOfSpeechString characterRange: NSRange,
-        utterance: AVSpeechUtterance
-    ) {
-        guard let viewModel = chapterViewModel else { return }
-        viewModel.updateHighlight(using: characterRange)
-    }
+    
+//    func speechSynthesizer(
+//        _ synthesizer: AVSpeechSynthesizer,
+//        willSpeakRangeOfSpeechString characterRange: NSRange,
+//        utterance: AVSpeechUtterance
+//    ) {
+//        guard let viewModel = chapterViewModel else { return }
+//        viewModel.updateHighlight(using: characterRange)
+//    }
     
     private func clean(_ word: String) -> String {
         word.lowercased()

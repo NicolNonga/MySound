@@ -24,26 +24,15 @@ struct RecordStartView: View {
     var timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 12) {
             if !showAsHeader { Spacer() }
-            
-            // CARD CLEAN
+
             HStack(spacing: 16) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Ouvir ou Praticar")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.primary)
-                    Text(ttsService.isSpeaking ? "Lendo em voz alta..." :
-                         (recordingService.isRecording ? "Gravando..." : "Escolha uma opção"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                
+                // Only buttons: play/stop and mic
                 if !ttsService.isSpeaking && !recordingService.isRecording {
                     Button {
-                        ttsService.speak(viewModel.chapterText, languageCode: viewModel.languageCode)
+                        ttsService.speak(viewModel.currentWord, languageCode: viewModel.languageCode)
+
                     } label: {
                         Image(systemName: "play.fill")
                             .font(.system(size: 18, weight: .bold))
@@ -67,15 +56,14 @@ struct RecordStartView: View {
                     .accessibilityLabel("Stop")
                     .accessibilityHint("Stop the speech.")
                 }
-                
+
                 Button {
                     Task {
                         if ttsService.isSpeaking { ttsService.stop() }
                         await recordingService.startRecording()
                         // Inicia avanço automático durante a gravação a cada 0.8s
-                        viewModel.startAutoAdvance(interval: 0.8)
+
                         isRecording = true
-                       
                     }
                 } label: {
                     Image(systemName: "mic.fill")
@@ -87,36 +75,21 @@ struct RecordStartView: View {
                 .disabled(recordingService.isRecording)
                 .opacity(recordingService.isRecording ? 0.5 : 1)
             }
-            .padding(16)
-            .background(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(.ultraThinMaterial)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .strokeBorder(Color.white.opacity(0.06), lineWidth: 1)
-                    )
-                    .shadow(color: Color.black.opacity(0.25), radius: 18, x: 0, y: 10)
-            )
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 16)
             .transition(.move(edge: .bottom).combined(with: .opacity))
-            
+
             if !showAsHeader {
                 Spacer().frame(height: 8).padding(.bottom, 12)
             }
-        }.task {
+        }
+        .task {
             while true {
                 try? await Task.sleep(for: .seconds(1))
                 currentTime += 1
                 print("TASK TICK")
             }
         }
-
-        
-//            .onReceive(timer) { _ in
-//              
-//                currentTime += 1
-//            }
     }
 }
 
@@ -128,9 +101,9 @@ struct RecordStartView: View {
         "es-ES": "Este es un capítulo de exemplo simple. El usuario leerá este texto en voz alta.",
         "pt-BR": "Este é um capítulo de exemplo simples. O usuário lerá este texto en voz alta."
     ]
-    let text = sampleText["en-GB"] ?? "Text not available"
+    let text = ["Mother", "Father", "Sister", "Brother"]
     let recordingService = RecordingService()
-    let _viewModel = ChapterViewModel(chapterText: text, languageCode: "en-GB")
+    let _viewModel = ChapterViewModel(words: text, languageCode: "en-GB")
     RecordStartView(ttsService: ts, viewModel: _viewModel, recordingService: recordingService, showAsHeader: true)
 }
 

@@ -23,85 +23,85 @@ struct ChapterView: View {
     @State private var didAttachTTS = false
     
     @State private var lastScrolledIndex: Int = 0
+    @State private var isPronunciationCorrect: Bool? = true
     
-    init(languageCode: String, context: String){
-        let text = context
-        let vm = ChapterViewModel(chapterText: text, languageCode: languageCode)
+    init(languageCode: String, words: [String]){
+       
+        let vm = ChapterViewModel(words: words, languageCode: languageCode)
         _viewModel = StateObject(wrappedValue: vm)
         // Do not touch ttsService here; it isn't installed yet.
     }
     
     var body: some View {
-        ZStack {
-            // Conteúdo principal com auto-scroll
-            GeometryReader { geo in
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        HStack {
-                            Spacer(minLength: 0)
-                            Text(buildAttributedString(words: viewModel.words, highlightIndex: viewModel.currentWordIndex))
-                                .font(.title3)
-                                .frame(maxWidth: 640, alignment: .leading)
-                                .padding()
-                                .id("paragraph")
-                            Spacer(minLength: 0)
-                        }
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.bottom)
-                    .onChange(of: viewModel.currentWordIndex) { newValue in
-                        // Evita rolar imediatamente no início
-                        if lastScrolledIndex == 0 && newValue < 5 { return }
+        GeometryReader { geo in
+            VStack(spacing: 16) {
+                Spacer(minLength: 0)
 
-                        let visibleHeight = geo.size.height
-                        #if canImport(UIKit)
-                        let lineHeight = UIFont.preferredFont(forTextStyle: .title3).lineHeight
-                        #else
-                        let lineHeight: CGFloat = 22
-                        #endif
-
-                        // Estimativa heurística de palavras por tela
-                        let wordsPerLine = max(6, Int(640 / 10))
-                        let linesPerScreen = max(3, Int(visibleHeight / max(lineHeight, 1)))
-                        let wordsPerScreen = max(20, wordsPerLine * linesPerScreen / 2)
-
-                        // Limiar: 50% da tela
-                        let threshold = max(10, Int(Double(wordsPerScreen) * 0.5))
-
-                        if newValue - lastScrolledIndex >= threshold {
-                            withAnimation {
-                                proxy.scrollTo("paragraph", anchor: .top)
+                // Tinder-like Card with centered current word (no controls inside)
+                ZStack {
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .fill(Color(.systemBackground))
+                        .shadow(color: Color.black.opacity(0.2), radius: 18, x: 0, y: 10)
+                    VStack(spacing: 12) {
+                     
+                        Text(viewModel.currentWord)
+                            .font(.system(size: 42, weight: .bold))
+                            .foregroundStyle(.primary)
+                            .minimumScaleFactor(0.5)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 24)
+                        // Pronunciation result indicator (appears when not nil)
+                        if let correct = isPronunciationCorrect {
+                            HStack(spacing: 8) {
+                                ZStack {
+                                    Circle()
+                                        .fill(correct ? Color.green : Color.red)
+                                        .frame(width: 44, height: 44)
+                                    Image(systemName: correct ? "checkmark" : "xmark")
+                                        .font(.system(size: 18, weight: .bold))
+                                        .foregroundStyle(.white)
+                                }
+//                                Text(correct ? "Correct" : "Wrong")
+//                                    .font(.headline)
+//                                    .foregroundStyle(.primary)
                             }
-                            lastScrolledIndex = newValue
+                            .transition(.scale.combined(with: .opacity))
                         }
                     }
                 }
-            }
-            
-            // Rodapé: apenas controles agora
-            VStack(spacing: 8) {
-                Spacer()
-                
-                if recordingService.isRecording {
-                    RecordingBottomBar(
-                        isRecording: $isRecording,
-                        isPaused: $isPaused,
-                        currentTime: $currentTime,
-                        currentLevel: CGFloat(recordingService.currentLevel),
-                        isActive: $isActive,
-                        recordingService: recordingService,
-                        chapterViewModel: viewModel
-                    )
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                } else if !isPlayMyAudio {
-                    RecordStartView(
-                        ttsService: ttsService,
-                        viewModel: viewModel,
-                        recordingService: recordingService
-                    )
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                .frame(maxWidth: 640)
+                .aspectRatio(3/4, contentMode: .fit)
+                .padding(.horizontal, 16)
+
+                // Buttons below the card
+                HStack(spacing: 20) {
+                    if recordingService.isRecording {
+                        RecordingBottomBar(
+                            isRecording: $isRecording,
+                            isPaused: $isPaused,
+                            currentTime: $currentTime,
+                            currentLevel: CGFloat(recordingService.currentLevel),
+                            isActive: $isActive,
+                            recordingService: recordingService,
+                            chapterViewModel: viewModel
+                        )
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                    } else if !isPlayMyAudio {
+                        RecordStartView(
+                            ttsService: ttsService,
+                            viewModel: viewModel,
+                            recordingService: recordingService,
+                            showAsHeader: true
+                        )
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
                 }
+                .padding(.top, 8)
+                .padding(.horizontal, 16)
+
+                Spacer(minLength: 0)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .safeAreaInset(edge: .top, spacing: 8) {
             if recordingService.recordingStopped,
@@ -118,38 +118,13 @@ struct ChapterView: View {
                 didAttachTTS = true
             }
         }
-        
+  
     }
     
-    // Cria um AttributedString com destaque amarelo na palavra atual
-    // Note: words come from viewModel.words (tokenized by the ViewModel).
-    // We intentionally do not split by characters here to avoid robotic highlighting.
-    private func buildAttributedString(words: [String], highlightIndex: Int) -> AttributedString {
-        var result = AttributedString()
-        for (i, w) in words.enumerated() {
-            var piece = AttributedString(w)
-            piece.font = .system(.title3)
-            if i == highlightIndex {
-                piece.backgroundColor = .yellow
-            }
-            result += piece
-            if i < words.count - 1 {
-                result += AttributedString(" ")
-            }
-        }
-        return result
-    }
-    
-//    private func highlightWord(_ word: String) -> AttributedString {
-//        var a = AttributedString(word)
-//        a.backgroundColor = .yellow
-//        a.font = .system(.title3)
-//        return a
-//    }
 
 }
 
 #Preview {
-    ChapterView(languageCode: "en-GB", context: "Text not available")
+    ChapterView(languageCode: "en-GB", words: ["Sister", "Father","Son" ])
 }
 

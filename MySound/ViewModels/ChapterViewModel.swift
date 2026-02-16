@@ -17,6 +17,7 @@ class ChapterViewModel: ObservableObject {
     @Published var chapterText: String
     let languageCode: String
     @Published var highlightWordIndex: Int? = nil
+    @Published private(set) var currentWord: String = ""
     
     @Published var words: [String] = []
     private(set) var wordInfos: [WordInfo] = []
@@ -24,50 +25,33 @@ class ChapterViewModel: ObservableObject {
 
     private var timer: Timer?
     
-    init(chapterText: String, languageCode: String) {
-        self.chapterText = chapterText
+    init(words: [String], languageCode: String) {
+        self.words = words
         self.languageCode = languageCode
-        
-        self.wordInfos = Self.tokenize(chapterText)
-        self.words = wordInfos.map { $0.text }
+        self.chapterText =  words[0]
+        self.currentWord = words[0]
+//        self.words = wordInfos.map { $0.text }
     }
     
-    private static func tokenize(_ text: String) -> [WordInfo] {
-        var result: [WordInfo] = []
-        var i = text.startIndex
-        let separators = CharacterSet.whitespacesAndNewlines.union(.punctuationCharacters)
-        while i < text.endIndex {
-            // Skip separators
-            while i < text.endIndex, let scalar = text[i].unicodeScalars.first, separators.contains(scalar) {
-                i = text.index(after: i)
-            }
-            guard i < text.endIndex else { break }
-            var j = i
-            while j < text.endIndex, let scalar = text[j].unicodeScalars.first, !separators.contains(scalar) {
-                j = text.index(after: j)
-            }
-            let range = i..<j
-            let word = String(text[range])
-            result.append(WordInfo(text: word, range: range))
-            i = j
-        }
-        return result
-    }
-    
-    func startAutoAdvance(interval:TimeInterval = 0.8){
-        stopAutoAdvance()
-        
-        timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true){[weak self] _ in
-            guard let self = self else {return}
+    func nextWord() {
+        currentWordIndex += 1
+        if currentWordIndex < words.count {
+           
+            currentWord = words[currentWordIndex]
             
-            if self.currentWordIndex < self.words.count - 1 {
-                self.currentWordIndex += 1
-            }else {
-                self.stopAutoAdvance()
-            }
+            
+            print("Index atual:", currentWordIndex)
+            print("Palavra atual:", currentWord)
+            print("Total palavras:", words.count)
         }
-        
     }
+    func previousWord() {
+        if currentWordIndex > 0 {
+            currentWordIndex -= 1
+            
+        }
+    }
+
     
     func stopAutoAdvance(){
         timer?.invalidate()
@@ -77,22 +61,6 @@ class ChapterViewModel: ObservableObject {
     func reset(){
         currentWordIndex = 0
     }
-    
-    func updateWordIndex(_ index: Int) {
-        DispatchQueue.main.async {
-            if index < self.words.count {
-                self.currentWordIndex = index
-            }
-        }
-    }
-    
-    func updateHighlight(using characterRange: NSRange) {
-        guard let range = Range(characterRange, in: chapterText) else { return }
-        let location = range.lowerBound
-        if let idx = wordInfos.firstIndex(where: { $0.range.contains(location) }) {
-            updateWordIndex(idx)
-        }
-    }
-    
+        
 }
 

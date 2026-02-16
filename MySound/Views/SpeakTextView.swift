@@ -60,8 +60,8 @@ struct SpeakTextView: View {
         "pt-BR": "Este é um capítulo de exemplo simples. O usuário lerá este texto en voz alta."
     ]
 
-    let text = sampleText["en-GB"] ?? "Text not available"
+    let text = ["Mother", "Father"]
     
-     var _viewModel = ChapterViewModel(chapterText: text, languageCode: "en-GB")
+     var _viewModel = ChapterViewModel(words: text, languageCode: "en-GB")
     SpeakTextView(ttsService: ts, viewModel: _viewModel)
 }
