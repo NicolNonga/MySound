@@ -10,6 +10,7 @@ import Combine
 
 struct ChapterView: View {
     @StateObject private var ttsService = TTSService()
+    @StateObject private var speechRecognition = SpeechRecognitionService()
     @StateObject private var recordingService = RecordingService()
     @StateObject private var viewModel: ChapterViewModel
     
@@ -23,7 +24,10 @@ struct ChapterView: View {
     @State private var didAttachTTS = false
     
     @State private var lastScrolledIndex: Int = 0
-    @State private var isPronunciationCorrect: Bool? = true
+    @State private var isPronunciationCorrect: Bool? = nil
+    @State private var celebrationTrigger: Bool = false
+    
+    @State private var hasHandledStopEvent = false
     
     init(languageCode: String, words: [String]){
        
@@ -39,35 +43,43 @@ struct ChapterView: View {
 
                 // Tinder-like Card with centered current word (no controls inside)
                 ZStack {
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .fill(Color(.systemBackground))
-                        .shadow(color: Color.black.opacity(0.2), radius: 18, x: 0, y: 10)
-                    VStack(spacing: 12) {
-                     
-                        Text(viewModel.currentWord)
-                            .font(.system(size: 42, weight: .bold))
-                            .foregroundStyle(.primary)
-                            .minimumScaleFactor(0.5)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 24)
-                        // Pronunciation result indicator (appears when not nil)
-                        if let correct = isPronunciationCorrect {
-                            HStack(spacing: 8) {
-                                ZStack {
-                                    Circle()
-                                        .fill(correct ? Color.green : Color.red)
-                                        .frame(width: 44, height: 44)
-                                    Image(systemName: correct ? "checkmark" : "xmark")
-                                        .font(.system(size: 18, weight: .bold))
-                                        .foregroundStyle(.white)
+                    // Card
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 24, style: .continuous)
+                            .fill(Color(.systemBackground))
+                            .shadow(color: Color.black.opacity(0.2), radius: 18, x: 0, y: 10)
+                        VStack(spacing: 12) {
+                         
+                            Text(viewModel.currentWord)
+                                .font(.system(size: 42, weight: .bold))
+                                .foregroundStyle(.primary)
+                                .minimumScaleFactor(0.5)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 24)
+                            // Pronunciation result indicator (appears when not nil)
+                            if let correct = isPronunciationCorrect {
+                                HStack(spacing: 8) {
+                                    ZStack {
+                                        Circle()
+                                            .fill(correct ? Color.green : Color.red)
+                                            .frame(width: 44, height: 44)
+                                        Image(systemName: correct ? "checkmark" : "xmark")
+                                            .font(.system(size: 18, weight: .bold))
+                                            .foregroundStyle(.white)
+                                    }
                                 }
-//                                Text(correct ? "Correct" : "Wrong")
-//                                    .font(.headline)
-//                                    .foregroundStyle(.primary)
+                                .transition(.scale.combined(with: .opacity))
                             }
-                            .transition(.scale.combined(with: .opacity))
                         }
                     }
+                    // Celebration overlay (fires when trigger toggles)
+                    if let correct = isPronunciationCorrect {
+                        if correct {
+                            CelebrationView(trigger: $celebrationTrigger)
+                                .allowsHitTesting(false)
+                        }
+                    }
+               
                 }
                 .frame(maxWidth: 640)
                 .aspectRatio(3/4, contentMode: .fit)
@@ -106,11 +118,26 @@ struct ChapterView: View {
         .safeAreaInset(edge: .top, spacing: 8) {
             if recordingService.recordingStopped,
                let url = recordingService.fileURL {
-
+                 
+                
                 AudioPlayerVeiw(audioURL: url, isPlayMyAudio:  $isPlayMyAudio)
                     .padding(.horizontal, 12)
                     .padding(.top, 8)
+                
+              
             }
+        }
+        .onChange(of: recordingService.recordingStopped){  stopped in
+            
+            if stopped  {
+               
+                Task {
+                    await transcribeLastRecording()
+                    // Reset the guard only after transcription completes
+
+                }
+            }
+            
         }
         .onAppear {
             if !didAttachTTS {
@@ -121,8 +148,65 @@ struct ChapterView: View {
   
     }
     
+    func transcribeLastRecording () async {
+        // Request permission directly in this async context
+        let granted = await self.speechRecognition.requestPermission()
+        guard granted else { return }
+        guard let url = recordingService.fileURL else { return }
+
+        do {
+            let text = try await speechRecognition.transcribeAudio(from: url)
+            let correct = checkValuePronuncia(spoken: text)
+            self.isPronunciationCorrect = correct
+
+            if correct {
+                // Dispara celebração de forma idempotente
+                self.celebrationTrigger.toggle()
+            }
+
+            // Aguardar um pequeno tempo para mostrar o indicador/celebração e então prosseguir
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                if correct {
+                    viewModel.nextWord()
+                   
+                }
+                // Limpar o indicador para permitir novas avaliações
+                self.isPronunciationCorrect = nil
+                // Resetar o trigger para permitir novos disparos de celebração
+                self.celebrationTrigger = false
+                // Resetar a flag de parada da gravação para permitir que o onChange dispare novamente
+                self.recordingService.recordingStopped = false
+            }
+        } catch {
+            print("Erro na transcricao", error)
+            // Em caso de erro, permitir novas tentativas
+            DispatchQueue.main.async {
+                self.isPronunciationCorrect = nil
+                self.celebrationTrigger = false
+                self.recordingService.recordingStopped = false
+            }
+        }
+    }
+    
+    private func checkValuePronuncia(spoken: String) -> Bool {
+        
+        let normalizedSpoken = normalize(spoken)
+        let normalizedExpected = normalize(viewModel.currentWord)
+        
+        return normalizedSpoken == normalizedExpected
+    }
+    
+    private func normalize(_ text: String) -> String {
+        text
+            .lowercased()
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .folding(options: .diacriticInsensitive, locale: .current)
+    }
+
 
 }
+
+
 
 #Preview {
     ChapterView(languageCode: "en-GB", words: ["Sister", "Father","Son" ])

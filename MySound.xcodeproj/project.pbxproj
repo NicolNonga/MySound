@@ -10,9 +10,22 @@
 		1811503F2EEB1A0F00C339A7 /* MySound.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MySound.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		18231BC92F4491DD005C5CCD /* Exceptions for "MySound" folder in "MySound" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 1811503E2EEB1A0F00C339A7 /* MySound */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		181150412EEB1A0F00C339A7 /* MySound */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				18231BC92F4491DD005C5CCD /* Exceptions for "MySound" folder in "MySound" target */,
+			);
 			path = MySound;
 			sourceTree = "<group>";
 		};
@@ -254,7 +267,9 @@
 				DEVELOPMENT_TEAM = PFM6XW52QP;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MySound/Info.plist;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "We need access to your microphone so you can practice pronunciation";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "This app uses speech recognition to verify pronunciation.\nThis app uses speech recognition to verify pronunciation.\nThis is uses speech recognition to verify pronunciation";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -288,7 +303,9 @@
 				DEVELOPMENT_TEAM = PFM6XW52QP;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MySound/Info.plist;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "We need access to your microphone so you can practice pronunciation";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "This app uses speech recognition to verify pronunciation.\nThis app uses speech recognition to verify pronunciation.\nThis is uses speech recognition to verify pronunciation";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

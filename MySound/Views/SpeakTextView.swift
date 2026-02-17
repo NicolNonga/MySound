@@ -52,13 +52,6 @@ struct SpeakTextView: View {
 
 #Preview {
     let ts = TTSService()
-    
-    let sampleText: [String: String] = [
-        "en-GB": "This is a simple sample chapter. The user will read this text aloud.",
-        "fr-FR": "Ceci est un chapitre exemple simple. L'utilisateur lira ce texte à voix haute.",
-        "es-ES": "Este es un capítulo de exemplo simple. El usuario leerá este texto en voz alta.",
-        "pt-BR": "Este é um capítulo de exemplo simples. O usuário lerá este texto en voz alta."
-    ]
 
     let text = ["Mother", "Father"]
     

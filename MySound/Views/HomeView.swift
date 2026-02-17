@@ -32,7 +32,7 @@ struct LanguageListView: View {
         }
         NavigationView {
             List(viewModel.filteredTexts) { text in
-                NavigationLink(destination: ChapterView(languageCode: "en-US", words: ["Mother", "Father", "Son"])) {
+                NavigationLink(destination: ChapterView(languageCode: "en-US", words: ["Father", "Mother", "Father", "Mother", "Child"])) {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(text.title)

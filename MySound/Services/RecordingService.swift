@@ -13,7 +13,7 @@ import os
 final class RecordingService: NSObject, ObservableObject {
     @Published private(set) var isRecording: Bool = false
     @Published private(set) var currentLevel: Float = 0.0 // 0.0 ... 1.0 normalized
-    @Published private(set) var recordingStopped: Bool = false
+    @Published  var recordingStopped: Bool = false
     
     private var recorder: AVAudioRecorder?
     private var levelTimer: Timer?
